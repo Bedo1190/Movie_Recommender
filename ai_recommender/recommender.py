@@ -2,9 +2,19 @@ import numpy as np
 import pickle
 import operator
 from collections import defaultdict
+import os
 
-similarity_model_path = "item_similarity_model.pkl"
-movie_id_mapping_path = "movie_id_mapping.pkl"
+# 1. Bu dosyanın (recommender.py) nerede olduğunu bul
+# Örn: /Users/.../Movie_Recommender/ai_recommender
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# 2. Bir üst klasöre (Proje Ana Dizinine) çık
+# Örn: /Users/.../Movie_Recommender
+root_dir = os.path.dirname(current_dir)
+
+# 3. Yolları dinamik olarak oluştur
+similarity_model_path = os.path.join(root_dir, "item_similarity_model.pkl")
+movie_id_mapping_path = os.path.join(root_dir, "movie_id_mapping.pkl")
 
 class ItemBasedRecommender:
     def __init__(self):

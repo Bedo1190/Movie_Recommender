@@ -6,7 +6,7 @@ from data_loader import load_data, create_user_item_matrix
 
 similarity_model_path = "item_similarity_model.pkl"
 movie_id_mapping_path = "movie_id_mapping.pkl"
-rating_file_path = "ratings_clean.csv" 
+rating_file_path = "./movie-recommender/data/processed/ratings_clean.csv" 
 
 def compute_item_similarity(item_user_sparse_matrix):
     """
@@ -61,3 +61,6 @@ def build_and_save_model():
 
     # Save model assets
     save_model_assets(item_similarity_matrix, movie_ids)
+
+if __name__ == "__main__":
+    build_and_save_model()
