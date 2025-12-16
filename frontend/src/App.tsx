@@ -4,12 +4,31 @@ import { clearSession, loadLastRecs, loadLiked, saveLastRecs, saveLiked } from '
 import { MovieCard } from './components/MovieCard'
 import { MovieModal } from './components/MovieModal'
 
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value)
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+    return () => {
+      clearTimeout(handler)
+    }
+  }, [value, delay])
+
+  return debouncedValue
+}
+
 type Tab = 'discover' | 'liked' | 'recs'
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('discover')
   const [popular, setPopular] = useState<Movie[]>([])
+  
   const [searchQ, setSearchQ] = useState('')
+  const debouncedSearchQ = useDebounce(searchQ, 500) 
+
   const [searchResults, setSearchResults] = useState<Movie[]>([])
   const [likedIds, setLikedIds] = useState<number[]>(() => loadLiked())
   const [recommendations, setRecommendations] = useState<Movie[]>(() => {
@@ -41,6 +60,34 @@ export default function App() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!debouncedSearchQ.trim()) {
+      setSearchResults([])
+      return
+    }
+
+    let alive = true
+    
+    async function autoSearch() {
+      setLoading('search')
+      setError(null)
+      try {
+        const data = await searchMovies(debouncedSearchQ.trim())
+        if (alive) setSearchResults(data)
+      } catch (e: any) {
+        if (alive) setError(e?.message || 'Search failed')
+      } finally {
+        if (alive) setLoading(null)
+      }
+    }
+
+    autoSearch()
+
+    return () => {
+      alive = false
+    }
+  }, [debouncedSearchQ]) 
+
   const likedSet = useMemo(() => new Set(likedIds), [likedIds])
 
   function toggleLike(movieId: number) {
@@ -49,24 +96,6 @@ export default function App() {
       saveLiked(next)
       return next
     })
-  }
-
-  async function doSearch() {
-    const q = searchQ.trim()
-    if (!q) {
-      setSearchResults([])
-      return
-    }
-    setLoading('search')
-    setError(null)
-    try {
-      const data = await searchMovies(q)
-      setSearchResults(data)
-    } catch (e: any) {
-      setError(e?.message || 'Search failed')
-    } finally {
-      setLoading(null)
-    }
   }
 
   async function doRecommend() {
@@ -164,14 +193,10 @@ export default function App() {
                 className="input input--search"
                 value={searchQ}
                 onChange={(e) => setSearchQ(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') doSearch()
-                }}
-                placeholder="Search movies by title… (backend: /search?q=...)"
+                placeholder="Search movies by title… (auto search)"
               />
-              <button className="btn" onClick={doSearch} type="button" disabled={loading !== null}>
-                {loading === 'search' ? 'Searching…' : 'Search'}
-              </button>
+              {loading === 'search' && <span className="muted" style={{ marginLeft: 10 }}>Searching...</span>}
+              
               <button
                 className="btn"
                 onClick={() => {
@@ -180,6 +205,7 @@ export default function App() {
                 }}
                 type="button"
                 disabled={loading !== null}
+                style={{ marginLeft: 'auto' }}
               >
                 Clear
               </button>
@@ -197,9 +223,9 @@ export default function App() {
               ))}
             </div>
 
-            {loading === 'popular' ? <div className="muted">Loading popular…</div> : null}
+            {loading === 'popular' ? <div className="muted">Loading popular…</div> : null}            
             {searchQ.trim() && discoverList.length === 0 && loading !== 'search' ? (
-              <div className="muted">No search results.</div>
+              <div className="muted">No search results for "{searchQ}".</div>
             ) : null}
           </>
         ) : null}
