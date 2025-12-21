@@ -4,15 +4,10 @@ import operator
 from collections import defaultdict
 import os
 
-# 1. Bu dosyanın (recommender.py) nerede olduğunu bul
-# Örn: /Users/.../Movie_Recommender/ai_recommender
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
-# 2. Bir üst klasöre (Proje Ana Dizinine) çık
-# Örn: /Users/.../Movie_Recommender
 root_dir = os.path.dirname(current_dir)
 
-# 3. Yolları dinamik olarak oluştur
 similarity_model_path = os.path.join(root_dir, "item_similarity_model.pkl")
 movie_id_mapping_path = os.path.join(root_dir, "movie_id_mapping.pkl")
 
@@ -27,9 +22,9 @@ class ItemBasedRecommender:
         """
         Load the precomputed item similarity matrix and movie ID mapping list.
         """
-        print("Loading model assets...")
+        print(f"Loading model assets from: {root_dir} ...")
 
-        #1 Load the Similarity Matrix
+        # 1. Similarity Matrix 
         try:
             with open(similarity_model_path, 'rb') as f:
                 self.item_similarity_matrix = pickle.load(f)
@@ -38,7 +33,7 @@ class ItemBasedRecommender:
             print(f"Error: Model file not found at {similarity_model_path}")
             return
 
-        #2 Load the Movie ID List
+        # 2. Movie ID List 
         try:
             with open(movie_id_mapping_path, 'rb') as f:
                 self.movie_ids = pickle.load(f)
@@ -46,33 +41,23 @@ class ItemBasedRecommender:
                 
                 self.movie_id_to_index = {movie_id: index for index, movie_id in enumerate(self.movie_ids)}
         except FileNotFoundError:
-            print(f"Error: ID mapping file not found at {movie_id_mapping_path}")
-            return
-        
+            print(f"Error: Mapping file not found at {movie_id_mapping_path}")
 
-    def get_recommendations(self, liked_movie_ids: list, top_k: int = 10) -> list:
+    def get_recommendations(self, liked_movie_ids, top_k=10):
         """
-        Generate top-K movie recommendations based on a list of liked movies.
-
-        Parameters:
-                liked_movie_ids (list): A list of MovieLens IDs liked by the current session user.
-                top_k (int): The number of top recommendations to return.
-
-        Returns:
-                list: List of recommended movie IDs.
+        Geriye [(movieId, score), (movieId, score)] formatında liste döner.
         """
         if self.item_similarity_matrix is None or self.movie_ids is None:
             print("Model assets not loaded properly.")
             return []
         
-        #1. Compute the Total Score for each candidate movie
         recommendation_scores = defaultdict(float)
 
         for liked_id in liked_movie_ids:
             liked_index = self.movie_id_to_index.get(liked_id)
 
             if liked_index is None:
-                print(f"Movie ID {liked_id} not found in the mapping.")
+                # print(f"Movie ID {liked_id} not found in the mapping.")
                 continue
 
             similar_items = self.item_similarity_matrix[liked_index]
@@ -83,16 +68,21 @@ class ItemBasedRecommender:
                 if candidate_movie_id not in liked_movie_ids:
                     recommendation_scores[candidate_movie_id] += score
 
-        #2. Sort the candidate movies based on their scores
+        if not recommendation_scores:
+            return []
+            
+        max_score = max(recommendation_scores.values()) if recommendation_scores else 1.0
+        
         sorted_recommendations = sorted(
             recommendation_scores.items(), 
             key=operator.itemgetter(1), 
             reverse=True
         )
 
-        #3. Return the top-K recommended movie IDs
-        recommended_movie_ids = [movie_id for movie_id, score in sorted_recommendations[:top_k]]
 
-        return recommended_movie_ids
-        
+        final_recommendations = []
+        for movie_id, raw_score in sorted_recommendations[:top_k]:
+            normalized_score = raw_score / max_score if max_score > 0 else 0
+            final_recommendations.append((movie_id, normalized_score))
 
+        return final_recommendations
