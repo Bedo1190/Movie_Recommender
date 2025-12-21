@@ -60,6 +60,7 @@ def evaluate():
     
     precision_scores = []
     ndcg_scores = []
+    recall_scores = []   
     hit_scores = []
     
     valid_items = set(item_similarity_df.index)
@@ -84,17 +85,22 @@ def evaluate():
         
         hits = [1 if item in true_test_items else 0 for item in recommendations]
         
-        precision_scores.append(sum(hits) / TOP_K)
+        hit_count = sum(hits)
+        
+        precision_scores.append(hit_count / TOP_K)
+        
+        recall_scores.append(hit_count / len(true_test_items))  
+        
         ndcg_scores.append(ndcg_at_k(hits, TOP_K))
-        hit_scores.append(1 if sum(hits) > 0 else 0)
+        hit_scores.append(1 if hit_count > 0 else 0)
 
     print("\n" + "="*40)
-    print(f" Results (for Top-{TOP_K} recommendations)")
+    print(f"📢 Results for (Top-{TOP_K} recommendations)")
     print("="*40)
     print(f"Average Precision : {np.mean(precision_scores):.4f}")
+    print(f"Average Recall    : {np.mean(recall_scores):.4f}") 
     print(f"Average NDCG      : {np.mean(ndcg_scores):.4f}")
     print(f"Hit Rate          : {np.mean(hit_scores):.4f}")
     print("="*40)
-
 if __name__ == "__main__":
     evaluate()
